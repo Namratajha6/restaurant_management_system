@@ -1,26 +1,25 @@
 package dbHelper
 
 import (
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"new_restaurant/models"
 )
 
 func CreateRestaurant(db *sqlx.DB, restaurant models.Restaurant) error {
-	query := `INSERT INTO restaurant (id, name, address, latitude, longitude, created_by, rating) 
-				VALUES ( :id, :name, :address, :latitude, :longitude, :created_by, :rating)`
+	query := `INSERT INTO restaurant (name, address, latitude, longitude, created_by, rating) 
+				VALUES ( :name, :address, :latitude, :longitude, :created_by, :rating)`
 	_, err := db.NamedExec(query, restaurant)
 	return err
 }
 
 func CreateDish(db *sqlx.DB, dish models.Dish) error {
-	query := `INSERT INTO dishes (id, restaurant_id, name, description, price, created_by) 
-				VALUES(:id, :restaurant_id, :name, :description, :price, :created_by)`
+	query := `INSERT INTO dishes ( restaurant_id, name, description, price, created_by) 
+				VALUES( :restaurant_id, :name, :description, :price, :created_by)`
 	_, err := db.NamedExec(query, dish)
 	return err
 }
 
-func ListAllDishByRestaurant(db *sqlx.DB, restaurantID uuid.UUID) ([]models.Dish, error) {
+func ListAllDishByRestaurant(db *sqlx.DB, restaurantID string) ([]models.Dish, error) {
 	const query = `
 		SELECT id, restaurant_id, name, description, price, created_by
 		FROM dishes

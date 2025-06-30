@@ -22,7 +22,7 @@ func SetupRoutes() http.Handler {
 		}
 	}).Methods("GET")
 
-	// Auth routes
+	//// Auth routes
 	r.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
 	r.HandleFunc("/logout", handlers.LogoutHandler).Methods("POST")
 	r.HandleFunc("/GetDishesByID", handlers.ListAllDishByRestaurant).Methods("GET")
@@ -32,7 +32,7 @@ func SetupRoutes() http.Handler {
 	protected := r.PathPrefix("/api").Subrouter()
 	protected.Use(middleware.AuthMiddleware)
 	protected.HandleFunc("/CreateAddress", handlers.CreateAddress).Methods("POST")
-	protected.HandleFunc("/CalculateDistance", handlers.CalculateDistance).Methods("POST")
+	//protected.HandleFunc("/CalculateDistance", handlers.CalculateDistance).Methods("POST")
 
 	// Admin routes
 	admin := protected.PathPrefix("/admin").Subrouter()
@@ -41,9 +41,9 @@ func SetupRoutes() http.Handler {
 	admin.HandleFunc("/GetSubadmins", handlers.ListAllSubAdmins).Methods("GET")
 	admin.HandleFunc("/CreateRestaurants", handlers.CreateRestaurant).Methods("POST")
 	admin.HandleFunc("/GetRestaurants", handlers.ListAllRestaurantByAdmin).Methods("GET")
-
-	admin.HandleFunc("/CreateDish", handlers.CreateDish).Methods("POST")
-
+	//
+	//admin.HandleFunc("/CreateDish", handlers.CreateDish).Methods("POST")
+	//
 	subAdmin := protected.PathPrefix("/subAdmin").Subrouter()
 	subAdmin.HandleFunc("/GetRestaurants", handlers.ListAllRestaurantBySubAdmin).Methods("GET")
 

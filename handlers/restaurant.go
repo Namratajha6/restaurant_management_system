@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"github.com/google/uuid"
+	"fmt"
 	"net/http"
 	"new_restaurant/database"
 	"new_restaurant/database/dbHelper"
@@ -23,23 +23,23 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := utils.GetUserID(r)
+	claims, ok := utils.GetClaims(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	restaurant := models.Restaurant{
-		ID:        uuid.New(),
 		Name:      req.Name,
 		Address:   req.Address,
 		Latitude:  req.Latitude,
 		Longitude: req.Longitude,
 		Rating:    req.Rating,
-		CreatedBy: userID,
+		CreatedBy: claims.UserID,
 	}
 
 	if err := dbHelper.CreateRestaurant(database.Rest, restaurant); err != nil {
+		fmt.Println(err.Error())
 		http.Error(w, "error creating restaurant", http.StatusInternalServerError)
 		return
 	}
@@ -90,15 +90,12 @@ func ListAllRestaurantByAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListAllRestaurant(w http.ResponseWriter, r *http.Request) {
-
-	// Fetch from DB
 	restaurant, err := dbHelper.ListAllRestaurant(database.Rest)
 	if err != nil {
 		http.Error(w, "failed to list restaurant", http.StatusInternalServerError)
 		return
 	}
 
-	// JSON Response
 	w.Header().Set("Content-Type", "application/json")
 	if err := utils.JSON.NewEncoder(w).Encode(map[string]interface{}{
 		"restaurants": restaurant,
@@ -119,15 +116,7 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate UUID
-	restaurantUUID, err := uuid.Parse(req.RestaurantID)
-	if err != nil {
-		http.Error(w, "invalid restaurant_id", http.StatusBadRequest)
-		return
-	}
-
-	// Parse user ID from context
-	userID, ok := utils.GetUserID(r)
+	claims, ok := utils.GetClaims(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -135,17 +124,16 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 
 	// Build dish object
 	dish := models.Dish{
-		ID:           uuid.New(),
-		RestaurantID: restaurantUUID,
+		RestaurantID: req.RestaurantID,
 		Name:         req.Name,
 		Description:  req.Description,
 		Price:        req.Price,
-		CreatedBy:    userID,
+		CreatedBy:    claims.UserID,
 	}
 
-	err = dbHelper.CreateDish(database.Rest, dish)
+	err := dbHelper.CreateDish(database.Rest, dish)
 	if err != nil {
-		http.Error(w, "error creating dish: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "error creating dish: ", http.StatusInternalServerError)
 		return
 	}
 
@@ -156,15 +144,9 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListAllDishByRestaurant(w http.ResponseWriter, r *http.Request) {
-	restaurantIDStr := r.URL.Query().Get("id")
-	if restaurantIDStr == "" {
+	restaurantID := r.URL.Query().Get("id")
+	if restaurantID == "" {
 		http.Error(w, "restaurant ID is required", http.StatusBadRequest)
-		return
-	}
-
-	restaurantID, err := uuid.Parse(restaurantIDStr)
-	if err != nil {
-		http.Error(w, "invalid restaurant ID format", http.StatusBadRequest)
 		return
 	}
 

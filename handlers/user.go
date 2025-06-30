@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
@@ -23,28 +22,36 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ok, err := dbHelper.IsUserExists(database.Rest, req.Email)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if ok {
+		http.Error(w, "user already exist", http.StatusNotFound)
+		return
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "error hashing password", http.StatusInternalServerError)
 		return
 	}
 
-	userID := uuid.New()
 	user := models.User{
-		ID:       userID,
 		Name:     req.Name,
 		Email:    req.Email,
 		Password: string(hashedPassword),
 	}
 
 	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		if err := dbHelper.CreateUser(tx, user); err != nil {
+		userID, err := dbHelper.CreateUser(tx, user)
+		if err != nil {
 			return err
 		}
 
 		for _, role := range req.Roles {
 			roleEntry := models.UserRole{
-				ID:       uuid.New(),
 				UserID:   userID,
 				RoleType: role,
 			}
@@ -62,25 +69,22 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	utils.JSON.NewEncoder(w).Encode(map[string]string{
-		"user_id": userID.String(),
+		"message": "User created successfully",
 	})
 }
 
 func ListAllUsers(w http.ResponseWriter, r *http.Request) {
-	// Only admins allowed
 	if !utils.HasRole(r, "admin") {
-		http.Error(w, "only admin can view sub-admins", http.StatusForbidden)
+		http.Error(w, "only admin can view users", http.StatusForbidden)
 		return
 	}
 
-	// Fetch from DB
 	users, err := dbHelper.ListAllUsers(database.Rest)
 	if err != nil {
-		http.Error(w, "failed to list sub-admins", http.StatusInternalServerError)
+		http.Error(w, "failed to list users", http.StatusInternalServerError)
 		return
 	}
 
-	// JSON Response
 	w.Header().Set("Content-Type", "application/json")
 	if err := utils.JSON.NewEncoder(w).Encode(map[string]interface{}{
 		"users": users,
@@ -99,13 +103,13 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := dbHelper.GetUserByEmail(database.Rest, req.Email)
 	if err != nil {
-		http.Error(w, "invalid email or password", http.StatusUnauthorized)
+		http.Error(w, "invalid email", http.StatusUnauthorized)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		http.Error(w, "invalid email or password", http.StatusUnauthorized)
+		http.Error(w, "invalid password", http.StatusUnauthorized)
 		return
 	}
 
@@ -115,20 +119,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := utils.GenerateJWT(user.ID.String(), string(role.RoleType))
+	token, err := utils.GenerateJWT(user.ID, string(role.RoleType))
 	if err != nil {
 		http.Error(w, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	refreshToken, err := utils.GenerateRefreshToken(user.ID.String(), string(role.RoleType))
+	refreshToken, err := utils.GenerateRefreshToken(user.ID, string(role.RoleType))
 	if err != nil {
 		http.Error(w, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
 	session := models.Session{
-		ID:           uuid.New(),
 		UserID:       user.ID,
 		RefreshToken: refreshToken,
 	}
@@ -164,7 +167,6 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListAllSubAdmins(w http.ResponseWriter, r *http.Request) {
-	// Only admins allowed
 	if !utils.HasRole(r, "admin") {
 		http.Error(w, "only admin can view sub-admins", http.StatusForbidden)
 		return
@@ -177,7 +179,6 @@ func ListAllSubAdmins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// JSON Response
 	w.Header().Set("Content-Type", "application/json")
 	if err := utils.JSON.NewEncoder(w).Encode(map[string]interface{}{
 		"subadmins": subadmins,
@@ -198,15 +199,14 @@ func CreateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := utils.GetUserID(r)
+	claims, ok := utils.GetClaims(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	user := models.UserAddress{
-		ID:        uuid.New(),
-		UserID:    userID,
+		UserID:    claims.UserID,
 		Address:   req.Address,
 		Latitude:  req.Latitude,
 		Longitude: req.Longitude,
@@ -214,7 +214,7 @@ func CreateAddress(w http.ResponseWriter, r *http.Request) {
 
 	err := dbHelper.CreateUserAddress(database.Rest, user)
 	if err != nil {
-		http.Error(w, "failed to create user", http.StatusInternalServerError)
+		http.Error(w, "failed to create user address", http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

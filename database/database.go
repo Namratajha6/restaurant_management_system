@@ -10,8 +10,7 @@ import (
 	// source/file import is required for migration files to read
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jmoiron/sqlx"
-
-	// load pq as database driver
+	
 	_ "github.com/lib/pq"
 )
 

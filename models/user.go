@@ -1,8 +1,6 @@
-// models/user.go
 package models
 
 import (
-	"github.com/google/uuid"
 	"time"
 )
 
@@ -15,25 +13,25 @@ const (
 )
 
 type User struct {
-	ID         uuid.UUID  `json:"id" db:"id"`
+	ID         string     `json:"id" db:"id"`
 	Name       string     `json:"name" db:"name"`
 	Email      string     `json:"email" db:"email"`
-	Password   string     `json:"-" db:"password"` // "-" to exclude from JSON
+	Password   string     `json:"-" db:"password"`
 	CreatedAt  *time.Time `json:"created_at" db:"created_at"`
 	ArchivedAt *time.Time `json:"archived_at,omitempty" db:"archived_at"`
 }
 
 type UserRole struct {
-	ID         uuid.UUID  `json:"id" db:"id"`
-	UserID     uuid.UUID  `json:"user_id" db:"user_id"`
+	ID         string     `json:"id" db:"id"`
+	UserID     string     `json:"user_id" db:"user_id"`
 	RoleType   RoleType   `json:"role_type" db:"role_type"`
 	CreatedAt  *time.Time `json:"created_at" db:"created_at"`
 	ArchivedAt *time.Time `json:"archived_at,omitempty" db:"archived_at"`
 }
 
 type UserAddress struct {
-	ID         uuid.UUID  `json:"id" db:"id"`
-	UserID     uuid.UUID  `json:"user_id" db:"user_id"`
+	ID         string     `json:"id" db:"id"`
+	UserID     string     `json:"user_id" db:"user_id"`
 	Address    string     `json:"address" db:"address"`
 	Latitude   *float64   `json:"latitude,omitempty" db:"latitude"`
 	Longitude  *float64   `json:"longitude,omitempty" db:"longitude"`
@@ -56,18 +54,18 @@ type LoginRequest struct {
 }
 
 type Session struct {
-	ID           uuid.UUID  `db:"id"`
-	UserID       uuid.UUID  `db:"user_id"`
+	ID           string     `db:"id"`
+	UserID       string     `db:"user_id"`
 	RefreshToken string     `db:"refresh_token"`
 	CreatedAt    *time.Time `db:"created_at"`
 	ArchivedAt   *time.Time `db:"archived_at"`
 }
 
 type UserResponse struct {
-	ID        uuid.UUID `db:"id" json:"id"`
-	Name      string    `db:"name" json:"name"`
-	Email     string    `db:"email" json:"email"`
-	RoleTypes string    `db:"role_type" json:"role_type"` // array
+	ID        string `db:"id" json:"id"`
+	Name      string `db:"name" json:"name"`
+	Email     string `db:"email" json:"email"`
+	RoleTypes string `db:"role_type" json:"role_type"` // array
 }
 
 type UserAddressRequest struct {

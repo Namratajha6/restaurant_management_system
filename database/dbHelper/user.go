@@ -1,47 +1,64 @@
 package dbHelper
 
 import (
-	"github.com/google/uuid"
+	"database/sql"
 	"github.com/jmoiron/sqlx"
 	"new_restaurant/models"
 )
 
-func CreateUser(tx *sqlx.Tx, user models.User) error {
-	_, err := tx.NamedExec(`
-		INSERT INTO users (id, name, email, password) 
-		VALUES (:id, :name, :email, :password)`, &user)
-	return err
+func IsUserExists(db *sqlx.DB, email string) (bool, error) {
+	var id string
+	err := db.Get(&id, `SELECT id FROM users WHERE email = $1`, email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+func CreateUser(tx *sqlx.Tx, user models.User) (string, error) {
+	var id string
+	err := tx.QueryRowx(`
+		INSERT INTO users (name, email, password)
+		VALUES ($1, $2, $3)
+		RETURNING id`,
+		user.Name, user.Email, user.Password,
+	).Scan(&id)
+
+	return id, err
 }
 
 func CreateUserRole(tx *sqlx.Tx, role models.UserRole) error {
 	_, err := tx.NamedExec(`
-		INSERT INTO user_role (id, user_id, role_type) 
-		VALUES (:id, :user_id, :role_type)`, &role)
+		INSERT INTO user_role (user_id, role_type) 
+		VALUES (:user_id, :role_type)`, &role)
 	return err
 }
 
 func CreateUserAddress(db *sqlx.DB, address models.UserAddress) error {
 	_, err := db.NamedExec(`
-		INSERT INTO user_address (id, user_id, address, latitude, longitude) 
-		VALUES (:id, :user_id, :address, :latitude, :longitude)`, &address)
+		INSERT INTO user_address ( user_id, address, latitude, longitude) 
+		VALUES ( :user_id, :address, :latitude, :longitude)`, &address)
 	return err
 }
 
 func GetUserByEmail(db *sqlx.DB, email string) (models.User, error) {
 	var user models.User
-	err := db.Get(&user, "SELECT * FROM users WHERE email = $1 AND archived_at IS NULL", email)
+	err := db.Get(&user, "SELECT id, name, email, password FROM users WHERE email = $1 AND archived_at IS NULL", email)
 	return user, err
 }
 
-func GetUserRoleByUserID(db *sqlx.DB, userID uuid.UUID) (models.UserRole, error) {
+func GetUserRoleByUserID(db *sqlx.DB, userID string) (models.UserRole, error) {
 	var role models.UserRole
-	err := db.Get(&role, "SELECT * FROM user_role WHERE user_id = $1 AND archived_at IS NULL", userID)
+	err := db.Get(&role, "SELECT role_type FROM user_role WHERE user_id = $1 AND archived_at IS NULL", userID)
 	return role, err
 }
 
 func CreateSession(db *sqlx.DB, session models.Session) error {
-	_, err := db.NamedExec(`INSERT INTO user_session (id, user_id, refresh_token)
-        VALUES (:id, :user_id, :refresh_token)`, &session)
+	_, err := db.NamedExec(`INSERT INTO user_session ( user_id, refresh_token)
+        VALUES (:user_id, :refresh_token)`, &session)
 	return err
 }
 
