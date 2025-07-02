@@ -16,63 +16,60 @@ type User struct {
 	ID         string     `json:"id" db:"id"`
 	Name       string     `json:"name" db:"name"`
 	Email      string     `json:"email" db:"email"`
+	RoleType   *RoleType  `json:"roleType" db:"role_type"`
 	Password   string     `json:"-" db:"password"`
-	CreatedAt  *time.Time `json:"created_at" db:"created_at"`
-	ArchivedAt *time.Time `json:"archived_at,omitempty" db:"archived_at"`
+	CreatedBy  string     `json:"createdBy" db:"created_by"`
+	CreatedAt  *time.Time `json:"createdAt" db:"created_at"`
+	ArchivedAt *time.Time `json:"archivedAt,omitempty" db:"archived_at"`
 }
 
 type UserRole struct {
 	ID         string     `json:"id" db:"id"`
-	UserID     string     `json:"user_id" db:"user_id"`
-	RoleType   RoleType   `json:"role_type" db:"role_type"`
-	CreatedAt  *time.Time `json:"created_at" db:"created_at"`
-	ArchivedAt *time.Time `json:"archived_at,omitempty" db:"archived_at"`
+	UserID     string     `json:"userId" db:"user_id"`
+	RoleType   RoleType   `json:"roleType" db:"role_type"`
+	CreatedAt  *time.Time `json:"createdAt" db:"created_at"`
+	ArchivedAt *time.Time `json:"archivedAt,omitempty" db:"archived_at"`
 }
 
 type UserAddress struct {
 	ID         string     `json:"id" db:"id"`
-	UserID     string     `json:"user_id" db:"user_id"`
+	UserID     string     `json:"userId" db:"user_id"`
 	Address    string     `json:"address" db:"address"`
+	IsPrimary  bool       `json:"isPrimary" db:"is_primary"`
 	Latitude   *float64   `json:"latitude,omitempty" db:"latitude"`
 	Longitude  *float64   `json:"longitude,omitempty" db:"longitude"`
-	CreatedAt  *time.Time `json:"created_at" db:"created_at"`
-	ArchivedAt *time.Time `json:"archived_at,omitempty" db:"archived_at"`
+	CreatedAt  *time.Time `json:"createdAt" db:"created_at"`
+	ArchivedAt *time.Time `json:"archivedAt,omitempty" db:"archived_at"`
 }
 
 // CreateUserRequest for API requests
 type UserRequest struct {
-	Name     string     `json:"name" validate:"required"`
-	Email    string     `json:"email" validate:"required,email"`
-	Password string     `json:"password" validate:"required,min=6"`
-	Roles    []RoleType `json:"roles" validate:"required,min=1,dive,required"`
+	Name     string     `json:"name"`
+	Email    string     `json:"email" `
+	Password string     `json:"password"`
+	Roles    []RoleType `json:"roles"`
 }
 
 // LoginRequest for authentication
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required"`
-}
-
-type Session struct {
-	ID           string     `db:"id"`
-	UserID       string     `db:"user_id"`
-	RefreshToken string     `db:"refresh_token"`
-	CreatedAt    *time.Time `db:"created_at"`
-	ArchivedAt   *time.Time `db:"archived_at"`
+	Email    string   `json:"email"`
+	Password string   `json:"password"`
+	RoleType RoleType `json:"roleType"`
 }
 
 type UserResponse struct {
 	ID        string `db:"id" json:"id"`
 	Name      string `db:"name" json:"name"`
 	Email     string `db:"email" json:"email"`
-	RoleTypes string `db:"role_type" json:"role_type"` // array
+	RoleTypes string `db:"role_type" json:"role_type"`
 }
 
 type UserAddressRequest struct {
-	Name      string   `json:"name" validate:"required"`
-	Address   string   `json:"address" validate:"required,email"`
-	Latitude  *float64 `json:"latitude" validate:"required,min=0"`
-	Longitude *float64 `json:"longitude" validate:"required,min=0"`
+	Name      string   `json:"name" `
+	Address   string   `json:"address" `
+	IsPrimary bool     `json:"isPrimary" `
+	Latitude  *float64 `json:"latitude" `
+	Longitude *float64 `json:"longitude" `
 }
 
 type DistanceRequest struct {

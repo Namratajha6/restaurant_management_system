@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
+	"log"
 	"net/http"
 	"new_restaurant/database"
 	"new_restaurant/database/dbHelper"
@@ -22,7 +23,13 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok, err := dbHelper.IsUserExists(database.Rest, req.Email)
+	if req.Name == " " || req.Email == "" || req.Password == "" ||
+		len(req.Roles) == 0 {
+		http.Error(w, "missing inputs", http.StatusBadRequest)
+		return
+	}
+
+	ok, err := dbHelper.IsUserExists(req.Email)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -38,6 +45,12 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims, ok := utils.GetClaims(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	user := models.User{
 		Name:     req.Name,
 		Email:    req.Email,
@@ -45,7 +58,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	txErr := database.Tx(func(tx *sqlx.Tx) error {
-		userID, err := dbHelper.CreateUser(tx, user)
+		userID, err := dbHelper.CreateUser(tx, user, claims.UserID)
 		if err != nil {
 			return err
 		}
@@ -67,7 +80,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	utils.JSON.NewEncoder(w).Encode(map[string]string{
 		"message": "User created successfully",
 	})
@@ -101,9 +113,16 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := dbHelper.GetUserByEmail(database.Rest, req.Email)
+	if req.Email == "" || req.Password == "" ||
+		req.RoleType == "" {
+		http.Error(w, "missing credentials", http.StatusBadRequest)
+		return
+	}
+
+	user, err := dbHelper.GetUserByEmailAndRole(database.Rest, req.Email, string(req.RoleType))
 	if err != nil {
-		http.Error(w, "invalid email", http.StatusUnauthorized)
+		log.Println("error:", err)
+		http.Error(w, "invalid email or role", http.StatusUnauthorized)
 		return
 	}
 
@@ -113,57 +132,15 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	role, err := dbHelper.GetUserRoleByUserID(database.Rest, user.ID)
-	if err != nil {
-		http.Error(w, "failed to fetch user role", http.StatusInternalServerError)
-		return
-	}
-
-	token, err := utils.GenerateJWT(user.ID, string(role.RoleType))
+	token, err := utils.GenerateJWT(user.ID, string(req.RoleType))
 	if err != nil {
 		http.Error(w, "failed to generate token", http.StatusInternalServerError)
 		return
 	}
 
-	refreshToken, err := utils.GenerateRefreshToken(user.ID, string(role.RoleType))
-	if err != nil {
-		http.Error(w, "failed to generate token", http.StatusInternalServerError)
-		return
-	}
-
-	session := models.Session{
-		UserID:       user.ID,
-		RefreshToken: refreshToken,
-	}
-
-	err = dbHelper.CreateSession(database.Rest, session)
-	if err != nil {
-		http.Error(w, "failed to create refresh token", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
 	utils.JSON.NewEncoder(w).Encode(map[string]string{
-		"token":         token,
-		"refresh_token": refreshToken,
+		"token": token,
 	})
-}
-
-func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	type reqBody struct {
-		RefreshToken string `json:"refresh_token"`
-	}
-	var req reqBody
-	if err := utils.JSON.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
-	}
-	err := dbHelper.DeleteSessionByToken(database.Rest, req.RefreshToken)
-	if err != nil {
-		http.Error(w, "failed to delete session", http.StatusInternalServerError)
-	}
-	w.WriteHeader(http.StatusOK)
-	utils.JSON.NewEncoder(w).Encode(map[string]string{"message": "logged out successfully"})
 }
 
 func ListAllSubAdmins(w http.ResponseWriter, r *http.Request) {
@@ -199,6 +176,11 @@ func CreateAddress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Name == " " || req.Address == "" {
+		http.Error(w, "missing inputs", http.StatusBadRequest)
+		return
+	}
+
 	claims, ok := utils.GetClaims(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -208,13 +190,16 @@ func CreateAddress(w http.ResponseWriter, r *http.Request) {
 	user := models.UserAddress{
 		UserID:    claims.UserID,
 		Address:   req.Address,
+		IsPrimary: req.IsPrimary,
 		Latitude:  req.Latitude,
 		Longitude: req.Longitude,
 	}
 
-	err := dbHelper.CreateUserAddress(database.Rest, user)
+	err := dbHelper.CreateUserAddress(user)
 	if err != nil {
+		log.Println("error:", err)
 		http.Error(w, "failed to create user address", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

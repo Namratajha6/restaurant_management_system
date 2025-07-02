@@ -1,76 +1,81 @@
 package dbHelper
 
 import (
-	"github.com/jmoiron/sqlx"
+	"new_restaurant/database"
 	"new_restaurant/models"
 )
 
-func CreateRestaurant(db *sqlx.DB, restaurant models.Restaurant) error {
+func CreateRestaurant(restaurant models.Restaurant) error {
 	query := `INSERT INTO restaurant (name, address, latitude, longitude, created_by, rating) 
 				VALUES ( :name, :address, :latitude, :longitude, :created_by, :rating)`
-	_, err := db.NamedExec(query, restaurant)
+	_, err := database.Rest.NamedExec(query, restaurant)
 	return err
 }
 
-func CreateDish(db *sqlx.DB, dish models.Dish) error {
+func CreateDish(dish models.Dish) error {
 	query := `INSERT INTO dishes ( restaurant_id, name, description, price, created_by) 
 				VALUES( :restaurant_id, :name, :description, :price, :created_by)`
-	_, err := db.NamedExec(query, dish)
+	_, err := database.Rest.NamedExec(query, dish)
 	return err
 }
 
-func ListAllDishByRestaurant(db *sqlx.DB, restaurantID string) ([]models.Dish, error) {
+func ListAllDishByRestaurant(restaurantID string) ([]models.Dish, error) {
 	const query = `
 		SELECT id, restaurant_id, name, description, price, created_by
 		FROM dishes
-		WHERE restaurant_id = $1 AND archived_at IS NULL;`
+		WHERE restaurant_id = $1 AND archived_at IS NULL
+		LIMIT 5 OFFSET 0;`
 
 	var dishes []models.Dish
-	err := db.Select(&dishes, query, restaurantID)
+	err := database.Rest.Select(&dishes, query, restaurantID)
 	return dishes, err
 }
 
-func ListAllRestaurant(db *sqlx.DB) ([]models.Restaurant, error) {
+func ListAllRestaurant() ([]models.Restaurant, error) {
 	const query = `
 		SELECT ID,name, address, latitude, longitude, created_by, rating
 		FROM restaurant
-		WHERE archived_at IS NULL;`
+		WHERE archived_at IS NULL
+		LIMIT 5 OFFSET 0;`
 
 	var restaurant []models.Restaurant
-	err := db.Select(&restaurant, query)
+	err := database.Rest.Select(&restaurant, query)
 	return restaurant, err
 }
 
-func ListAllRestaurantBySubAdmin(db *sqlx.DB) ([]models.Restaurant, error) {
+func ListAllRestaurantBySubAdmin() ([]models.Restaurant, error) {
 	const query = `
 		SELECT r.id, r.name, r.address, r.latitude, r.longitude, r.created_by, r.rating
 		FROM restaurant r
 		JOIN user_role ur ON r.created_by = ur.user_id
-		WHERE ur.role_type = 'sub_admin' AND r.archived_at IS NULL;`
+		WHERE ur.role_type = 'sub_admin' AND r.archived_at IS NULL
+		LIMIT 5 OFFSET 0;`
 
 	var restaurants []models.Restaurant
-	err := db.Select(&restaurants, query)
+	err := database.Rest.Select(&restaurants, query)
 	return restaurants, err
 }
 
-func GetRestaurantByID(db *sqlx.DB, restaurantID string) (*models.Restaurant, error) {
+func GetRestaurantByID(restaurantID string) (*models.Restaurant, error) {
 	var restaurant models.Restaurant
-	query := `SELECT id, name, address, latitude, longitude, rating, created_by
+	query := `SELECT id, latitude, longitude
 	          FROM restaurant 
 	          WHERE id = $1 AND archived_at IS NULL`
-	err := db.Get(&restaurant, query, restaurantID)
+	err := database.Rest.Get(&restaurant, query, restaurantID)
 	if err != nil {
 		return nil, err
 	}
 	return &restaurant, nil
 }
 
-func GetUserAddress(db *sqlx.DB, addressID string) (*models.UserAddress, error) {
+func GetPrimaryAddressByUserID(userID string) (*models.UserAddress, error) {
 	var address models.UserAddress
-	query := `SELECT id, user_id, address, latitude, longitude
-	          FROM user_address 
-	          WHERE id = $1 `
-	err := db.Get(&address, query, addressID)
+	query := `
+		SELECT id, user_id, address, latitude, longitude
+		FROM user_address
+		WHERE user_id = $1 AND is_primary = TRUE AND archived_at IS NULL;
+	`
+	err := database.Rest.Get(&address, query, userID)
 	if err != nil {
 		return nil, err
 	}

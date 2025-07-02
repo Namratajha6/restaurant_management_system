@@ -3,8 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"new_restaurant/database"
 	"new_restaurant/database/dbHelper"
 	"new_restaurant/models"
 	"new_restaurant/utils"
@@ -23,6 +23,11 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.Name == " " || req.Address == "" || req.Rating > 5 || req.Rating < 0 {
+		http.Error(w, "invalid input values", http.StatusBadRequest)
+		return
+	}
+
 	claims, ok := utils.GetClaims(r)
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -38,13 +43,12 @@ func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
 		CreatedBy: claims.UserID,
 	}
 
-	if err := dbHelper.CreateRestaurant(database.Rest, restaurant); err != nil {
+	if err := dbHelper.CreateRestaurant(restaurant); err != nil {
 		fmt.Println(err.Error())
 		http.Error(w, "error creating restaurant", http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
 	utils.JSON.NewEncoder(w).Encode(map[string]string{"message": "restaurant created successfully"})
 }
 
@@ -54,7 +58,7 @@ func ListAllRestaurantBySubAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	restaurant, err := dbHelper.ListAllRestaurantBySubAdmin(database.Rest)
+	restaurants, err := dbHelper.ListAllRestaurantBySubAdmin()
 	if err != nil {
 		http.Error(w, "failed to list restaurant", http.StatusInternalServerError)
 		return
@@ -62,7 +66,7 @@ func ListAllRestaurantBySubAdmin(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := utils.JSON.NewEncoder(w).Encode(map[string]interface{}{
-		"restaurants": restaurant,
+		"restaurants": restaurants,
 	}); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
@@ -74,7 +78,7 @@ func ListAllRestaurantByAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	restaurant, err := dbHelper.ListAllRestaurant(database.Rest)
+	restaurants, err := dbHelper.ListAllRestaurant()
 	if err != nil {
 		http.Error(w, "failed to list restaurant", http.StatusInternalServerError)
 		return
@@ -83,14 +87,14 @@ func ListAllRestaurantByAdmin(w http.ResponseWriter, r *http.Request) {
 	// JSON Response
 	w.Header().Set("Content-Type", "application/json")
 	if err := utils.JSON.NewEncoder(w).Encode(map[string]interface{}{
-		"restaurants": restaurant,
+		"restaurants": restaurants,
 	}); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
 }
 
 func ListAllRestaurant(w http.ResponseWriter, r *http.Request) {
-	restaurant, err := dbHelper.ListAllRestaurant(database.Rest)
+	restaurants, err := dbHelper.ListAllRestaurant()
 	if err != nil {
 		http.Error(w, "failed to list restaurant", http.StatusInternalServerError)
 		return
@@ -98,7 +102,7 @@ func ListAllRestaurant(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := utils.JSON.NewEncoder(w).Encode(map[string]interface{}{
-		"restaurants": restaurant,
+		"restaurants": restaurants,
 	}); err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 	}
@@ -113,6 +117,11 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 	var req models.CreateDishRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.RestaurantID == "" || req.Name == "" {
+		http.Error(w, "missing inputs", http.StatusBadRequest)
 		return
 	}
 
@@ -131,8 +140,9 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 		CreatedBy:    claims.UserID,
 	}
 
-	err := dbHelper.CreateDish(database.Rest, dish)
+	err := dbHelper.CreateDish(dish)
 	if err != nil {
+		log.Println("error creating dish:", err)
 		http.Error(w, "error creating dish: ", http.StatusInternalServerError)
 		return
 	}
@@ -150,8 +160,9 @@ func ListAllDishByRestaurant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dishes, err := dbHelper.ListAllDishByRestaurant(database.Rest, restaurantID)
+	dishes, err := dbHelper.ListAllDishByRestaurant(restaurantID)
 	if err != nil {
+		log.Println("error listing dish:", err)
 		http.Error(w, "failed to list dishes", http.StatusInternalServerError)
 		return
 	}
@@ -165,21 +176,24 @@ func ListAllDishByRestaurant(w http.ResponseWriter, r *http.Request) {
 }
 
 func CalculateDistance(w http.ResponseWriter, r *http.Request) {
-	var req models.DistanceRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	restaurantID := r.URL.Query().Get("id")
+
+	claims, ok := utils.GetClaims(r)
+	if !ok {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	// Get user address
-	userAddress, err := dbHelper.GetUserAddress(database.Rest, req.UserAddressID)
+	userAddress, err := dbHelper.GetPrimaryAddressByUserID(claims.UserID)
 	if err != nil {
+		log.Println("error getting user:", err)
 		http.Error(w, "User address not found", http.StatusNotFound)
 		return
 	}
 
 	// Get restaurant
-	restaurant, err := dbHelper.GetRestaurantByID(database.Rest, req.RestaurantID)
+	restaurant, err := dbHelper.GetRestaurantByID(restaurantID)
 	if err != nil {
 		http.Error(w, "Restaurant not found", http.StatusNotFound)
 		return

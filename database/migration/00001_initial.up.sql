@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
                                      name TEXT NOT NULL,
                                      email TEXT NOT NULL UNIQUE,
                                      password TEXT NOT NULL,
-                                     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                                      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                                      archived_at TIMESTAMP WITH TIME ZONE
 );
 

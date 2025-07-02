@@ -22,30 +22,32 @@ func SetupRoutes() http.Handler {
 		}
 	}).Methods("GET")
 
-	//// Auth routes
-	r.HandleFunc("/login", handlers.LoginHandler).Methods("POST")
-	r.HandleFunc("/logout", handlers.LogoutHandler).Methods("POST")
-	r.HandleFunc("/GetDishesByID", handlers.ListAllDishByRestaurant).Methods("GET")
-	r.HandleFunc("/GetRestaurants", handlers.ListAllRestaurant).Methods("GET")
+	r.HandleFunc("/api/v1/auth/login", handlers.LoginHandler).Methods("POST")
 
-	// Protected routes (with auth middleware)
-	protected := r.PathPrefix("/api").Subrouter()
+	// Public Restaurant Info (anyone can view)
+	r.HandleFunc("/api/v1/restaurants", handlers.ListAllRestaurant).Methods("GET")
+	r.HandleFunc("/api/v1/restaurants/{id}/dishes", handlers.ListAllDishByRestaurant).Methods("GET")
+
+	// Protected routes
+	protected := r.PathPrefix("/api/v1").Subrouter()
 	protected.Use(middleware.AuthMiddleware)
-	protected.HandleFunc("/CreateAddress", handlers.CreateAddress).Methods("POST")
-	//protected.HandleFunc("/CalculateDistance", handlers.CalculateDistance).Methods("POST")
 
-	// Admin routes
+	// User actions
+	protected.HandleFunc("/users/address", handlers.CreateAddress).Methods("POST")
+	protected.HandleFunc("/restaurants/{id}/distance", handlers.CalculateDistance).Methods("GET")
+
+	// Admin Routes
 	admin := protected.PathPrefix("/admin").Subrouter()
-	admin.HandleFunc("/CreateUser", handlers.CreateUser).Methods("POST")
-	admin.HandleFunc("/GetUsers", handlers.ListAllUsers).Methods("GET")
-	admin.HandleFunc("/GetSubadmins", handlers.ListAllSubAdmins).Methods("GET")
-	admin.HandleFunc("/CreateRestaurants", handlers.CreateRestaurant).Methods("POST")
-	admin.HandleFunc("/GetRestaurants", handlers.ListAllRestaurantByAdmin).Methods("GET")
-	//
-	//admin.HandleFunc("/CreateDish", handlers.CreateDish).Methods("POST")
-	//
-	subAdmin := protected.PathPrefix("/subAdmin").Subrouter()
-	subAdmin.HandleFunc("/GetRestaurants", handlers.ListAllRestaurantBySubAdmin).Methods("GET")
+	admin.HandleFunc("/users", handlers.CreateUser).Methods("POST")
+	admin.HandleFunc("/users", handlers.ListAllUsers).Methods("GET")
+	admin.HandleFunc("/subadmins", handlers.ListAllSubAdmins).Methods("GET")
+	admin.HandleFunc("/restaurants", handlers.CreateRestaurant).Methods("POST")
+	admin.HandleFunc("/restaurants", handlers.ListAllRestaurantByAdmin).Methods("GET")
+	admin.HandleFunc("/dishes", handlers.CreateDish).Methods("POST")
+
+	// Subadmin Routes
+	subAdmin := protected.PathPrefix("/subadmin").Subrouter()
+	subAdmin.HandleFunc("/restaurants", handlers.ListAllRestaurantBySubAdmin).Methods("GET")
 
 	return r
 }
