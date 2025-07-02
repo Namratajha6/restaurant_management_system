@@ -19,40 +19,41 @@ func CreateDish(dish models.Dish) error {
 	return err
 }
 
-func ListAllDishByRestaurant(restaurantID string) ([]models.Dish, error) {
+func ListAllDishByRestaurant(page int, limit int, restaurantID string) ([]models.Dish, error) {
 	const query = `
 		SELECT id, restaurant_id, name, description, price, created_by
 		FROM dishes
 		WHERE restaurant_id = $1 AND archived_at IS NULL
-		LIMIT 5 OFFSET 0;`
+		LIMIT $2 OFFSET $3;`
 
-	var dishes []models.Dish
-	err := database.Rest.Select(&dishes, query, restaurantID)
+	dishes := make([]models.Dish, 0)
+	err := database.Rest.Select(&dishes, query, restaurantID, limit, limit*(page-1))
 	return dishes, err
 }
 
-func ListAllRestaurant() ([]models.Restaurant, error) {
+func ListAllRestaurant(page int, limit int) ([]models.Restaurant, error) {
 	const query = `
 		SELECT ID,name, address, latitude, longitude, created_by, rating
 		FROM restaurant
 		WHERE archived_at IS NULL
-		LIMIT 5 OFFSET 0;`
+		LIMIT $1 OFFSET $2 ;`
 
-	var restaurant []models.Restaurant
-	err := database.Rest.Select(&restaurant, query)
-	return restaurant, err
+	offset := limit * (page - 1)
+	restaurants := make([]models.Restaurant, 0)
+	err := database.Rest.Select(&restaurants, query, limit, offset)
+	return restaurants, err
 }
 
-func ListAllRestaurantBySubAdmin() ([]models.Restaurant, error) {
+func ListAllRestaurantBySubAdmin(page int, limit int) ([]models.Restaurant, error) {
 	const query = `
 		SELECT r.id, r.name, r.address, r.latitude, r.longitude, r.created_by, r.rating
 		FROM restaurant r
 		JOIN user_role ur ON r.created_by = ur.user_id
 		WHERE ur.role_type = 'sub_admin' AND r.archived_at IS NULL
-		LIMIT 5 OFFSET 0;`
+		LIMIT $1 OFFSET $2;`
 
-	var restaurants []models.Restaurant
-	err := database.Rest.Select(&restaurants, query)
+	restaurants := make([]models.Restaurant, 0)
+	err := database.Rest.Select(&restaurants, query, limit, limit*(page-1))
 	return restaurants, err
 }
 

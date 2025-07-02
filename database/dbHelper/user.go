@@ -57,37 +57,37 @@ func CreateUserAddress(address models.UserAddress) error {
 //	return role, err
 //}
 
-func GetUserByEmailAndRole(db *sqlx.DB, email string, role string) (models.User, error) {
+func GetUserByEmailAndRole(email string, role string) (models.User, error) {
 	var user models.User
-	err := db.Get(&user, `SELECT u.id, u.name, u.email,u.password, ur.role_type
+	err := database.Rest.Get(&user, `SELECT u.id, u.name, u.email,u.password, ur.role_type
 		FROM users u
 		JOIN user_role ur ON u.id = ur.user_id
 		WHERE u.email = $1 AND ur.role_type = $2`, email, role)
 	return user, err
 }
 
-func ListAllSubAdmins(db *sqlx.DB) ([]models.UserResponse, error) {
+func ListAllSubAdmins(page int, limit int) ([]models.UserResponse, error) {
 	const query = `
 		SELECT u.id, u.name, u.email, ur.role_type
 		FROM users u
 		JOIN user_role ur ON u.id = ur.user_id
 		WHERE ur.role_type = 'sub_admin' AND u.archived_at IS NULL
-		LIMIT 5 OFFSET 0;`
+		LIMIT $1 OFFSET $2;`
 
-	var subAdmins []models.UserResponse
-	err := db.Select(&subAdmins, query)
+	subAdmins := make([]models.UserResponse, 0)
+	err := database.Rest.Select(&subAdmins, query, limit, (page-1)*limit)
 	return subAdmins, err
 }
 
-func ListAllUsers(db *sqlx.DB) ([]models.UserResponse, error) {
+func ListAllUsers(page int, limit int) ([]models.UserResponse, error) {
 	const query = `
 		SELECT u.id, u.name, u.email, ur.role_type
 		FROM users u
 		JOIN user_role ur ON u.id = ur.user_id
 		WHERE u.archived_at IS NULL
-		LIMIT 5 OFFSET 0;`
+		LIMIT $1 OFFSET $2;`
 
-	var user []models.UserResponse
-	err := db.Select(&user, query)
-	return user, err
+	users := make([]models.UserResponse, 0)
+	err := database.Rest.Select(&users, query, limit, (page-1)*limit)
+	return users, err
 }

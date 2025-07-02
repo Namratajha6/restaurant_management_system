@@ -8,6 +8,7 @@ import (
 	"new_restaurant/database/dbHelper"
 	"new_restaurant/models"
 	"new_restaurant/utils"
+	"strconv"
 )
 
 func CreateRestaurant(w http.ResponseWriter, r *http.Request) {
@@ -58,7 +59,19 @@ func ListAllRestaurantBySubAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	restaurants, err := dbHelper.ListAllRestaurantBySubAdmin()
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	restaurants, err := dbHelper.ListAllRestaurantBySubAdmin(page, limit)
 	if err != nil {
 		http.Error(w, "failed to list restaurant", http.StatusInternalServerError)
 		return
@@ -78,7 +91,23 @@ func ListAllRestaurantByAdmin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	restaurants, err := dbHelper.ListAllRestaurant()
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	restaurants, err := dbHelper.ListAllRestaurant(page, limit)
+	if len(restaurants) == 0 {
+		http.Error(w, "no dish found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		http.Error(w, "failed to list restaurant", http.StatusInternalServerError)
 		return
@@ -94,7 +123,23 @@ func ListAllRestaurantByAdmin(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListAllRestaurant(w http.ResponseWriter, r *http.Request) {
-	restaurants, err := dbHelper.ListAllRestaurant()
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	restaurants, err := dbHelper.ListAllRestaurant(page, limit)
+	if len(restaurants) == 0 {
+		http.Error(w, "no dish found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		http.Error(w, "failed to list restaurant", http.StatusInternalServerError)
 		return
@@ -154,13 +199,25 @@ func CreateDish(w http.ResponseWriter, r *http.Request) {
 }
 
 func ListAllDishByRestaurant(w http.ResponseWriter, r *http.Request) {
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
 	restaurantID := r.URL.Query().Get("id")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
 	if restaurantID == "" {
 		http.Error(w, "restaurant ID is required", http.StatusBadRequest)
 		return
 	}
 
-	dishes, err := dbHelper.ListAllDishByRestaurant(restaurantID)
+	dishes, err := dbHelper.ListAllDishByRestaurant(page, limit, restaurantID)
 	if len(dishes) == 0 {
 		http.Error(w, "no dish found", http.StatusNotFound)
 		return

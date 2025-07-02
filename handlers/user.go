@@ -9,6 +9,7 @@ import (
 	"new_restaurant/database/dbHelper"
 	"new_restaurant/models"
 	"new_restaurant/utils"
+	"strconv"
 )
 
 func CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +92,19 @@ func ListAllUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	users, err := dbHelper.ListAllUsers(database.Rest)
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	users, err := dbHelper.ListAllUsers(page, limit)
 	if err != nil {
 		http.Error(w, "failed to list users", http.StatusInternalServerError)
 		return
@@ -119,7 +132,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := dbHelper.GetUserByEmailAndRole(database.Rest, req.Email, string(req.RoleType))
+	user, err := dbHelper.GetUserByEmailAndRole(req.Email, string(req.RoleType))
 	if err != nil {
 		log.Println("error:", err)
 		http.Error(w, "invalid email or role", http.StatusUnauthorized)
@@ -138,9 +151,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	utils.JSON.NewEncoder(w).Encode(map[string]string{
+	err = utils.JSON.NewEncoder(w).Encode(map[string]string{
 		"token": token,
 	})
+
+	if err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func ListAllSubAdmins(w http.ResponseWriter, r *http.Request) {
@@ -149,8 +167,19 @@ func ListAllSubAdmins(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch from DB
-	subadmins, err := dbHelper.ListAllSubAdmins(database.Rest)
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	subadmins, err := dbHelper.ListAllSubAdmins(page, limit)
 	if err != nil {
 		http.Error(w, "failed to list sub-admins", http.StatusInternalServerError)
 		return
