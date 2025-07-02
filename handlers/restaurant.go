@@ -161,6 +161,10 @@ func ListAllDishByRestaurant(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dishes, err := dbHelper.ListAllDishByRestaurant(restaurantID)
+	if len(dishes) == 0 {
+		http.Error(w, "no dish found", http.StatusNotFound)
+		return
+	}
 	if err != nil {
 		log.Println("error listing dish:", err)
 		http.Error(w, "failed to list dishes", http.StatusInternalServerError)
